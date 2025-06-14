@@ -1,0 +1,78 @@
+# Scatter Plots of Rel_std vs Rel_se for each Orbital Parameter (hue = method)
+
+def compute_rel_std_and_se_data(df_calc_scatter, param):
+    data = []
+    grouped = df_calc_scatter.groupby(['pl_name', 'discoverymethod'])[param]
+
+    for (planet, method), values in grouped:
+        values = values.dropna()
+        if len(values) > 1:
+            std = values.std()
+            mean = values.mean()
+            se = std / np.sqrt(len(values))
+            rel_std = std / mean if mean != 0 else np.nan
+            rel_se = se / mean if mean != 0 else np.nan
+
+            data.append({
+                'pl_name': planet,
+                'method': method,
+                'rel_std': rel_std,
+                'rel_se': rel_se,
+                'count': len(values)
+            })
+    return pd.DataFrame(data)
+
+
+params = ['pl_orbper', 'pl_orbsmax', 'pl_rade',
+                  'pl_radj', 'pl_bmasse', 'pl_bmassj', 'pl_orbeccen']
+
+allowed_params = {
+    'Transit': ['pl_orbper', 'pl_orbsmax', 'pl_rade', 'pl_radj', 'pl_orbeccen'],
+    'Radial Velocity': ['pl_orbper', 'pl_orbsmax', 'pl_bmasse', 'pl_bmassj', 'pl_orbeccen'],
+    'Microlensing': ['pl_orbper', 'pl_orbsmax', 'pl_bmasse', 'pl_bmassj'],
+    'Imaging': ['pl_orbper', 'pl_orbsmax', 'pl_rade', 'pl_radj', 'pl_bmasse', 'pl_bmassj'],
+    'Transit Timing Variations': ['pl_orbper', 'pl_orbsmax', 'pl_bmasse', 'pl_bmassj', 'pl_orbeccen'],  # transit implied
+    'Eclipse Timing Variations': ['pl_orbper', 'pl_orbsmax', 'pl_bmasse', 'pl_bmassj', 'pl_orbeccen'],  # conditionally valid
+    'Orbital Brightness Modulation': ['pl_orbper', 'pl_orbsmax', 'pl_bmasse', 'pl_bmassj', 'pl_orbeccen'],
+    'Pulsar Timing': ['pl_orbper', 'pl_orbsmax', 'pl_bmasse', 'pl_bmassj', 'pl_orbeccen']}# timing only
+
+
+flag_df_scatter, filtered_df_for_scatterplots = flag_and_filter_parameters(df_clean, df_clean["discoverymethod"], params, allowed_params)
+
+fig, axs = plt.subplots(nrows=3, ncols=3, figsize=(30, 20))
+axs = axs.flatten()
+
+for i, param in enumerate(params):
+    rel_std_and_se_data_scatter = compute_rel_std_and_se_data(filtered_df_for_scatterplots, param) # calling the compute_rel_data() function to filter filtered dataframe from flagging operations to the final dataframe of rel_std values used in the box plots
+    rel_std_and_se_data_scatter = custom_downsample(rel_std_and_se_data_scatter, sampling_rates=sampling_rates)
+
+    if rel_std_and_se_data_scatter.empty:
+        continue  # Skip parameters with no valid data
+
+    for method in methods:
+      count = len(rel_std_and_se_data_scatter[rel_std_and_se_data_scatter['method'] == method])
+      method_palette = dict(zip(methods, sns.color_palette("Paired", n_colors=len(methods))))
+      print(f"{method} – {param}: {count} values")
+
+    #plt.figure(figsize=(12, 10))
+    sns.scatterplot(data=rel_std_and_se_data_scatter, x='rel_se', y='rel_std', hue='method', s = 450, palette=method_palette, alpha=0.75, ax=axs[i])
+    axs[i].set_title(param)
+    axs[i].set_xlabel('Rel. SE')
+    axs[i].set_ylabel('Rel. Std')
+    plt.grid(True)
+    plt.tight_layout()
+    plt.legend(loc='upper left')
+
+    #plt.xlabel('Relative Standard Error')
+    #plt.ylabel('Relative Standard Deviation')
+    #plt.title(f'Relative Std Dev vs. Relative SE for {param}')
+    #plt.xlabel('Relative Standard Error')
+    #plt.ylabel('Relative Standard Deviation')
+
+
+# Remove unused axes if params < grid slots
+for j in range(i + 1, len(axs)):
+    fig.delaxes(axs[j])
+
+
+plt.show()
