@@ -1,0 +1,25 @@
+def custom_downsample(df, method_col='method', sampling_rates=None):
+    if sampling_rates is None:
+        sampling_rates = {m: 1.0 for m in df[method_col].unique()}  # Keep everything if not specified
+
+    sampled = []  # This will hold our sampled DataFrames for each method
+
+    for method, group in df.groupby(method_col):
+        frac = sampling_rates.get(method, 1.0)  # Get sampling fraction, default to 1.0 if not specified
+        if frac < 1.0:
+            # Randomly sample a subset of the rows from this group
+            sample = group.sample(frac=frac, random_state=42)
+        else:
+            # Keep the entire group
+            sample = group
+        sampled.append(sample)
+
+    # Concatenate all the sampled groups back together into a single DataFrame
+    return pd.concat(sampled, ignore_index=True)
+
+sampling_rates = {
+    'Transit': 1.0, #0.25, # 0.0075,           # Keep 25% of Transit planets
+    'Radial Velocity': 1.0, #0.60, # 0.0225,    # Keep 50% of RV planets
+    'Microlensing': 1.0,       # Keep all Microlensing planets
+    'Imaging': 1.0,           # Keep all Imaging planets
+}
