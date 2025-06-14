@@ -1,0 +1,59 @@
+# Analysis 4: Error bar plots highlighting the mean of relative standard deviation (solid dots) +- standard error (vertical error bars) for each detection method and orbital parameter overlayed by boxplots visualizing the raw relative standard deviations
+# for each (detection method, orbital parameter) pair shown as boxes bounded by 25% (Q1) and 75% (Q3) values with a horizonal line indicating the distribution median.
+
+params = ['pl_orbper', 'pl_orbsmax', 'pl_rade',
+                  'pl_radj', 'pl_bmasse', 'pl_bmassj', 'pl_orbeccen']
+
+allowed_params = {
+    'Transit': ['pl_orbper', 'pl_orbsmax', 'pl_rade', 'pl_radj', 'pl_orbeccen'],
+    'Radial Velocity': ['pl_orbper', 'pl_orbsmax', 'pl_bmasse', 'pl_bmassj', 'pl_orbeccen'],
+    'Microlensing': ['pl_orbper', 'pl_orbsmax', 'pl_bmasse', 'pl_bmassj'],
+    'Imaging': ['pl_orbper', 'pl_orbsmax', 'pl_rade', 'pl_radj', 'pl_bmasse', 'pl_bmassj'],
+    'Transit Timing Variations': ['pl_orbper', 'pl_orbsmax', 'pl_bmasse', 'pl_bmassj', 'pl_orbeccen'],  # transit implied
+    'Eclipse Timing Variations': ['pl_orbper', 'pl_orbsmax', 'pl_bmasse', 'pl_bmassj', 'pl_orbeccen'],  # conditionally valid
+    'Orbital Brightness Modulation': ['pl_orbper', 'pl_orbsmax', 'pl_bmasse', 'pl_bmassj', 'pl_orbeccen'],
+    'Pulsar Timing': ['pl_orbper', 'pl_orbsmax', 'pl_bmasse', 'pl_bmassj', 'pl_orbeccen']}# timing only
+
+
+
+# calling the flag_and_filter_parameters() function to apply flagging operations to different datasets for both the errorbar and box plot data pipelines
+flag_df_box, filtered_df_for_boxplots = flag_and_filter_parameters(df_clean, df_clean["discoverymethod"], params, allowed_params)
+flag_df, filtered_df = flag_and_filter_parameters(final_df, final_df.index, params, allowed_params)
+
+methods = filtered_df.index
+
+def plot_rel_std_boxplot(param, rel_std_data_box, summary_df):
+    """
+    Plots boxplot + error bars for a given parameter using summary_df and rel_std_data_box.
+    """
+    methods = sorted(summary_df.index.tolist())
+
+    mean_col = f"{param}_mean_rel_std"
+    se_col = f"{param}_rel_se"
+    count_col = f"{param}_count"
+
+    means = summary_df.loc[methods, mean_col]
+    errors = summary_df.loc[methods, se_col]
+    counts = summary_df.loc[methods, count_col]
+    box_data = [rel_std_data_box.get(method, []) for method in methods]
+
+    plt.figure(figsize=(10, 8))
+
+    for method in methods:
+        print(f"{method} – {param}: {len(rel_std_data_box.get(method, []))} values")
+
+    plt.boxplot(box_data, positions=range(len(methods)), patch_artist=True, showfliers=False,
+                boxprops=dict(facecolor='lightgray', color='black'),
+                medianprops=dict(color='black'), whiskerprops=dict(color='none'), capprops=dict(color='none'))
+
+    plt.errorbar(x=range(len(means)), y=means, yerr=errors, fmt='o', capsize=5, color='black')
+    plt.xticks(range(len(methods)), methods, rotation=45)
+    plt.title(f"{param}: Mean Relative Std Dev ± SE")
+    plt.ylabel("Relative Std Dev")
+    plt.tight_layout()
+    plt.show()
+
+
+for param in params:
+    rel_std_data_box = compute_rel_std_data(filtered_df_for_boxplots, param) # calling the compute_rel_data() function to filter filtered dataframe from flagging operations to the final dataframe of rel_std values used in the box plots
+    plot_rel_std_boxplot(param, rel_std_data_box, filtered_df) # calling the plot_rel_std_boxplot function containing the plotting routine to generate box plots based on rel_std_data_box and errorbar plots based on filtered_df derived itself earlier from compute_rel_std_data() function + mean of rel_std & se calculations based on the raw df_clean dataset/dataframe
