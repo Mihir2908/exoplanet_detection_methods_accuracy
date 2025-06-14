@@ -1,0 +1,13 @@
+# Optimizing n_clusters Selection for KMeans Clustering (Elbow Method)
+
+inertias = []
+for k in range(2, 20):
+    km = KMeans(n_clusters=k, random_state=42)
+    km.fit(rel_std_and_se_data_ml[['rel_std', 'rel_se']])
+    inertias.append(km.inertia_)
+
+plt.plot(range(2, 20), inertias, marker='o')
+plt.xlabel('Number of clusters')
+plt.ylabel('Inertia')
+plt.title('Elbow Method')
+plt.show()
