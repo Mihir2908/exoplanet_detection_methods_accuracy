@@ -1,0 +1,102 @@
+# Using RandomForestClassifiers to predictively model and compare training data (Target Column : Reliability Category) acquired from KMeans Clustering vs Manual Thresholding 
+
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, confusion_matrix
+
+fig, axs_rf = plt.subplots(nrows=3, ncols=3, figsize=(30, 20))
+axs_rf = axs_rf.flatten()
+
+fig_manual, axs_rf_manual = plt.subplots(nrows=3, ncols=3, figsize=(30, 20))
+axs_rf_manual = axs_rf_manual.flatten()
+
+for i, param in enumerate(params):
+  rel_std_and_se_data_ml = results_per_param[param]
+  rel_std_and_se_data_manual = manual_results_per_param[param]
+
+  # Features: Use rel_std and rel_se (or scaled versions)
+  X = rel_std_and_se_data_ml[['rel_std', 'rel_se', 'rel_std_scaled', 'rel_se_scaled', 'method_encoded']]
+  Y = rel_std_and_se_data_ml['reliability_category']
+
+  X_manual = rel_std_and_se_data_manual[['rel_std', 'rel_se', 'rel_std_scaled', 'rel_se_scaled', 'method_encoded']]
+  Y_manual = rel_std_and_se_data_manual['manual_reliability_category']
+
+  # Performing test_train_split on entire dataset of the target 'reliability_category' column and values in rel_std vs rel_se space
+  X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.2, stratify=Y, random_state=42)
+
+  print(f"\n[INFO] Class distribution for {param}:\n", Y.value_counts())
+
+  # Performing test_train_split on entire dataset of the target 'manual_reliability_category' column and values in rel_std vs rel_se space
+  X_train_manual, X_test_manual, y_train_manual, y_test_manual = train_test_split(X_manual, Y_manual, test_size=0.2, stratify=Y_manual, random_state=42)
+
+
+  # Check class balance
+
+  #print(f"\nParameter: {param}")
+  #print("y_test distribution:\n", y_test.value_counts(normalize=True))
+
+  clf = RandomForestClassifier(n_estimators=50, random_state=42)
+  clf.fit(X_train, y_train)
+
+  y_pred = clf.predict(X_test)
+
+
+  clf_manual = RandomForestClassifier(n_estimators=50, random_state=42)
+  clf_manual.fit(X_train_manual, y_train_manual)
+
+  y_pred_manual = clf_manual.predict(X_test_manual)
+
+  #Evaluating Classification Metrics to summarize the model's predictive performance for data categorized prior using KMeans Clustering
+  print("Classification Report:\n", classification_report(y_test, y_pred))
+  print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred))
+
+  #Evaluating Classification Metrics to summarize the model's predictive performance of manually categorized data
+  print("Classification Report for Manual Data Categorization:\n", classification_report(y_test_manual, y_pred_manual))
+  print("Confusion Matrix for Manual Data Categorization:\n", confusion_matrix(y_test_manual, y_pred_manual))
+
+  # Predict for all data to visualize entire distribution not just the test data (X_test)
+  rel_std_and_se_data_ml['rf_predicted_reliability'] = clf.predict(X)
+
+  # Predict for all data to visualize entire distribution not just the test data (X_test_manual)
+  rel_std_and_se_data_manual['rf_predicted_reliability_manual'] = clf_manual.predict(X_manual)
+
+  # Add a new scatter plot to your subplot grid
+  sns.scatterplot(
+      data=rel_std_and_se_data_ml,
+      x='rel_se',
+      y='rel_std',
+      hue='rf_predicted_reliability',
+      palette=reliability_palette,  # reuse same palette as before
+      ax=axs_rf[i],
+      s=450,
+      alpha=0.75,
+      edgecolor='black'
+  )
+
+  axs_rf[i].set_title(f'{param} – RF Prediction')
+  axs_rf[i].set_xlabel('Rel. SE')
+  axs_rf[i].set_ylabel('Rel. Std')
+
+# Add a new scatter plot to your subplot grid
+  sns.scatterplot(
+      data=rel_std_and_se_data_manual,
+      x='rel_se',
+      y='rel_std',
+      hue='rf_predicted_reliability_manual',
+      palette=reliability_palette,  # reuse same palette as before
+      ax=axs_rf_manual[i],
+      s=450,
+      alpha=0.75,
+      edgecolor='black'
+  )
+
+  axs_rf_manual[i].set_title(f'{param} – RF Prediction for Manual Categorization')
+  axs_rf_manual[i].set_xlabel('Rel. SE')
+  axs_rf_manual[i].set_ylabel('Rel. Std')
+
+# Remove unused axes
+#for j in range(i + 1, len(axs)):
+ # fig.delaxes(axs[j])
+
+plt.tight_layout()
+plt.show()
